@@ -2,7 +2,7 @@
 PCRE_version=8.43
 ZLIB_version=1.2.11
 OPENSSL_version=1.1.1c
-NGINX_version=1.19.7
+NGINX_version=1.16.1
 nginxDir=/opt/nginx
 nginxAF=/etc/nginx/conf.d
 nginxLogDir=/var/log/nginx
@@ -10,9 +10,15 @@ function preRequirements() {
     yum -y update
     yum -y install wget
     yum group install "Development Tools" -y
-    mkdir -p $nginxDir
-    mkdir -p $nginxLogDir
-    mkdir -p $nginxAF
+    if [ ! -d $nginxDir ]; then
+        mkdir -p $nginxDir
+    fi
+    if [ ! -d $nginxLogDir ]; then
+        mkdir -p $nginxLogDir
+    fi
+    if [ ! -d $nginxAF ]; then
+        mkdir -p $nginxAF
+    fi
     cd $nginxDir
 }
 function installPCRE() {
@@ -87,7 +93,7 @@ function installNginx() {
                 --with-stream \
                 --with-http_stub_status_module \
                 --with-http_v2_module \
-                --add-module=../ngx_brotli \
+                --add-dynamic-module=../ngx_brotli \
                 --add-dynamic-module=../ngx_security_headers \
                 --with-mail && \
                 make  && \
@@ -122,6 +128,8 @@ function createnginxConfig() {
 user  nginx;
 worker_processes  auto;
 load_module modules/ngx_http_security_headers_module.so;
+load_module modules/ngx_http_brotli_filter_module.so;
+load_module modules/ngx_http_brotli_static_module.so;
 error_log  /var/log/nginx/error.log warn;
 pid        /var/run/nginx.pid;
 events {
@@ -176,7 +184,7 @@ fi
 echo "Install Nginx"
 installNginx
 netstat -nltp | grep nginx >> /dev/null 2>&1
-if [ $? -eq 0 ]; then
+if [ $? -ne 0 ]; then
     createNginxUser
     createnginxService
     createnginxConfig
